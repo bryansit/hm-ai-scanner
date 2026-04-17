@@ -543,6 +543,7 @@
         position: absolute;
         inset: 0;
         z-index: 10;
+        touch-action: none;
         pointer-events: none;
       }
       .fit-badge {
@@ -1395,60 +1396,176 @@
       }
       // Reemplaza la función tryItem() completa con esta:
       function tryItem(card, item) {
-        document
-          .querySelectorAll('.item-card')
-          .forEach((c) => c.classList.remove('selected'));
-        card.classList.add('selected');
+  document
+    .querySelectorAll('.item-card')
+    .forEach((c) => c.classList.remove('selected'));
+  card.classList.add('selected');
 
-        const canvas = document.getElementById('clothing-canvas');
-        const wrap = canvas.parentElement;
-        canvas.width = wrap.clientWidth;
-        canvas.height = wrap.clientHeight;
-        const ctx = canvas.getContext('2d');
+  const canvas = document.getElementById('clothing-canvas');
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  const ctx = canvas.getContext('2d');
 
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
 
-        img.onload = () => {
-          const scale = item.scale || 0.48;
-          let w = canvas.width * scale;
-          let h = w * (img.naturalHeight / img.naturalWidth);
-          let x = (canvas.width - w) / 2;
-          let y;
+  img.onload = () => {
+    const scale = item.scale || 0.48;
+    let w = canvas.width * scale;
+    let h = w * (img.naturalHeight / img.naturalWidth);
+    let x = (canvas.width - w) / 2;
+    let y;
 
-          if (item.id === 1) {
-            y = canvas.height * 0.14;
-            x = x + canvas.width * 0.01;
-          } else if (item.id === 6) {
-            y = canvas.height * 0.13;
-          } else if (item.id === 7) {
-            y = canvas.height * 0.13;
-          } else if (item.type === 'top') {
-            y = canvas.height * 0.18;
-          } else {
-            y = canvas.height * 0.44;
-          }
+    if (item.id === 1) {
+      y = canvas.height * 0.14;
+    } else if (item.type === 'top') {
+      y = canvas.height * 0.18;
+    } else {
+      y = canvas.height * 0.44;
+    }
 
-          ctx.shadowColor = 'rgba(0,0,0,0.2)';
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetX = 1;
-          ctx.shadowOffsetY = 3;
+    // evitar duplicados
+    const existsIndex = activeClothes.findIndex(
+      (cloth) => cloth.item.id === item.id
+    );
 
-          ctx.drawImage(img, x, y, w, h);
+    if (existsIndex === -1) {
+      activeClothes.push({
+        item,
+        img,
+        x,
+        y,
+        w,
+        h
+      });
+    }
 
-          // ✅ EVITAR DUPLICADOS - Verificar si ya existe en carrito
-          const existsIndex = activeClothes.findIndex(
-            (cloth) => cloth.item.id === item.id
-          );
-          if (existsIndex === -1) {
-            activeClothes.push({ item, img, x, y, w, h });
-          }
+    drawClothes();
+enableClothDrag(canvas);
+enableTouchGestures(canvas); // 👈 NUEVO
+updateAIRecommendation(item);  };
 
-          updateAIRecommendation(item);
-        };
+  img.src = item.img;
+}
+// ===================== DIBUJAR TODA LA ROPA =====================
+function drawClothes() {
+  const canvas = document.getElementById('clothing-canvas');
+  const ctx = canvas.getContext('2d');
 
-        img.src = item.img;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  activeClothes.forEach((cloth) => {
+    ctx.drawImage(cloth.img, cloth.x, cloth.y, cloth.w, cloth.h);
+  });
+}
+
+// ===================== DRAG & DROP =====================
+function enableClothDrag(canvas) {
+  let dragging = null;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  canvas.style.pointerEvents = 'auto'; // activar interacción
+
+  canvas.onmousedown = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // detectar prenda clickeada (de arriba hacia abajo)
+    for (let i = activeClothes.length - 1; i >= 0; i--) {
+      const c = activeClothes[i];
+
+      if (
+        mx >= c.x &&
+        mx <= c.x + c.w &&
+        my >= c.y &&
+        my <= c.y + c.h
+      ) {
+        dragging = c;
+        offsetX = mx - c.x;
+        offsetY = my - c.y;
+        break;
       }
+    }
+  };
+
+  canvas.onmousemove = (e) => {
+    if (!dragging) return;
+
+    const rect = canvas.getBoundingClientRect();
+    dragging.x = e.clientX - rect.left - offsetX;
+    dragging.y = e.clientY - rect.top - offsetY;
+
+    drawClothes();
+  };
+
+  canvas.onmouseup = () => {
+    dragging = null;
+  };
+
+  canvas.onmouseleave = () => {
+    dragging = null;
+  };
+}
+function enableTouchGestures(canvas) {
+  let initialDistance = null;
+  let scalingCloth = null;
+
+  canvas.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+
+      const [t1, t2] = e.touches;
+
+      initialDistance = Math.hypot(
+        t2.clientX - t1.clientX,
+        t2.clientY - t1.clientY
+      );
+
+      // detectar prenda en el centro del gesto
+      const rect = canvas.getBoundingClientRect();
+      const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
+      const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
+
+      scalingCloth = activeClothes.find(
+        (c) =>
+          cx >= c.x &&
+          cx <= c.x + c.w &&
+          cy >= c.y &&
+          cy <= c.y + c.h
+      );
+    }
+  });
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 2 && scalingCloth) {
+      e.preventDefault();
+
+      const [t1, t2] = e.touches;
+
+      const newDistance = Math.hypot(
+        t2.clientX - t1.clientX,
+        t2.clientY - t1.clientY
+      );
+
+      let scaleFactor = newDistance / initialDistance;
+
+      scalingCloth.w *= scaleFactor;
+      scalingCloth.h *= scaleFactor;
+
+      initialDistance = newDistance;
+
+      drawClothes();
+    }
+  });
+
+  canvas.addEventListener("touchend", () => {
+    initialDistance = null;
+    scalingCloth = null;
+  });
+}
       function updateAIRecommendation(item) {
         const el = document.getElementById('ai-content');
         el.innerHTML =
