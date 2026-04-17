@@ -1396,176 +1396,217 @@
       }
       // Reemplaza la función tryItem() completa con esta:
       function tryItem(card, item) {
-  document
-    .querySelectorAll('.item-card')
-    .forEach((c) => c.classList.remove('selected'));
-  card.classList.add('selected');
+        document
+          .querySelectorAll('.item-card')
+          .forEach((c) => c.classList.remove('selected'));
+        card.classList.add('selected');
 
-  const canvas = document.getElementById('clothing-canvas');
-  const wrap = canvas.parentElement;
-  canvas.width = wrap.clientWidth;
-  canvas.height = wrap.clientHeight;
-  const ctx = canvas.getContext('2d');
+        const canvas = document.getElementById('clothing-canvas');
+        const wrap = canvas.parentElement;
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+        const ctx = canvas.getContext('2d');
 
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
 
-  img.onload = () => {
-    const scale = item.scale || 0.48;
-    let w = canvas.width * scale;
-    let h = w * (img.naturalHeight / img.naturalWidth);
-    let x = (canvas.width - w) / 2;
-    let y;
+        img.onload = () => {
+          const scale = item.scale || 0.48;
+          let w = canvas.width * scale;
+          let h = w * (img.naturalHeight / img.naturalWidth);
+          let x = (canvas.width - w) / 2;
+          let y;
 
-    if (item.id === 1) {
-      y = canvas.height * 0.14;
-    } else if (item.type === 'top') {
-      y = canvas.height * 0.18;
-    } else {
-      y = canvas.height * 0.44;
-    }
+          if (item.id === 1) {
+            y = canvas.height * 0.14;
+          } else if (item.type === 'top') {
+            y = canvas.height * 0.18;
+          } else {
+            y = canvas.height * 0.44;
+          }
 
-    // evitar duplicados
-    const existsIndex = activeClothes.findIndex(
-      (cloth) => cloth.item.id === item.id
-    );
+          // evitar duplicados
+          const existsIndex = activeClothes.findIndex(
+            (cloth) => cloth.item.id === item.id
+          );
 
-    if (existsIndex === -1) {
-      activeClothes.push({
-        item,
-        img,
-        x,
-        y,
-        w,
-        h
-      });
-    }
+          if (existsIndex === -1) {
+            activeClothes.push({
+              item,
+              img,
+              x,
+              y,
+              w,
+              h,
+            });
+          }
 
-    drawClothes();
-enableClothDrag(canvas);
-enableTouchGestures(canvas); // 👈 NUEVO
-updateAIRecommendation(item);  };
+          drawClothes();
+          enableClothDrag(canvas);
+          enableTouchGestures(canvas); // 👈 NUEVO
+          updateAIRecommendation(item);
+        };
 
-  img.src = item.img;
-}
-// ===================== DIBUJAR TODA LA ROPA =====================
-function drawClothes() {
-  const canvas = document.getElementById('clothing-canvas');
-  const ctx = canvas.getContext('2d');
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  activeClothes.forEach((cloth) => {
-    ctx.drawImage(cloth.img, cloth.x, cloth.y, cloth.w, cloth.h);
-  });
-}
-
-// ===================== DRAG & DROP =====================
-function enableClothDrag(canvas) {
-  let dragging = null;
-  let offsetX = 0;
-  let offsetY = 0;
-
-  canvas.style.pointerEvents = 'auto'; // activar interacción
-
-  canvas.onmousedown = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    // detectar prenda clickeada (de arriba hacia abajo)
-    for (let i = activeClothes.length - 1; i >= 0; i--) {
-      const c = activeClothes[i];
-
-      if (
-        mx >= c.x &&
-        mx <= c.x + c.w &&
-        my >= c.y &&
-        my <= c.y + c.h
-      ) {
-        dragging = c;
-        offsetX = mx - c.x;
-        offsetY = my - c.y;
-        break;
+        img.src = item.img;
       }
-    }
-  };
+      // ===================== DIBUJAR TODA LA ROPA =====================
+      function drawClothes() {
+        const canvas = document.getElementById('clothing-canvas');
+        const ctx = canvas.getContext('2d');
 
-  canvas.onmousemove = (e) => {
-    if (!dragging) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const rect = canvas.getBoundingClientRect();
-    dragging.x = e.clientX - rect.left - offsetX;
-    dragging.y = e.clientY - rect.top - offsetY;
+        activeClothes.forEach((cloth) => {
+          ctx.drawImage(cloth.img, cloth.x, cloth.y, cloth.w, cloth.h);
+        });
+      }
 
-    drawClothes();
-  };
+      // ===================== DRAG & DROP =====================
+      function enableClothDrag(canvas) {
+        let dragging = null;
+        let offsetX = 0;
+        let offsetY = 0;
 
-  canvas.onmouseup = () => {
-    dragging = null;
-  };
+        canvas.style.pointerEvents = 'auto'; // activar interacción
 
-  canvas.onmouseleave = () => {
-    dragging = null;
-  };
-}
-function enableTouchGestures(canvas) {
-  let initialDistance = null;
-  let scalingCloth = null;
+        canvas.onmousedown = (e) => {
+          const rect = canvas.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
 
-  canvas.addEventListener("touchstart", (e) => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
+          // detectar prenda clickeada (de arriba hacia abajo)
+          for (let i = activeClothes.length - 1; i >= 0; i--) {
+            const c = activeClothes[i];
 
-      const [t1, t2] = e.touches;
+            if (mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h) {
+              dragging = c;
+              offsetX = mx - c.x;
+              offsetY = my - c.y;
+              break;
+            }
+          }
+        };
 
-      initialDistance = Math.hypot(
-        t2.clientX - t1.clientX,
-        t2.clientY - t1.clientY
-      );
+        canvas.onmousemove = (e) => {
+          if (!dragging) return;
 
-      // detectar prenda en el centro del gesto
-      const rect = canvas.getBoundingClientRect();
-      const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
-      const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
+          const rect = canvas.getBoundingClientRect();
+          dragging.x = e.clientX - rect.left - offsetX;
+          dragging.y = e.clientY - rect.top - offsetY;
 
-      scalingCloth = activeClothes.find(
-        (c) =>
-          cx >= c.x &&
-          cx <= c.x + c.w &&
-          cy >= c.y &&
-          cy <= c.y + c.h
-      );
-    }
-  });
+          drawClothes();
+        };
 
-  canvas.addEventListener("touchmove", (e) => {
-    if (e.touches.length === 2 && scalingCloth) {
-      e.preventDefault();
+        canvas.onmouseup = () => {
+          dragging = null;
+        };
 
-      const [t1, t2] = e.touches;
+        canvas.onmouseleave = () => {
+          dragging = null;
+        };
+      }
 
-      const newDistance = Math.hypot(
-        t2.clientX - t1.clientX,
-        t2.clientY - t1.clientY
-      );
+      function enableTouchGestures(canvas) {
+        let activeCloth = null;
+        let startX = 0;
+        let startY = 0;
 
-      let scaleFactor = newDistance / initialDistance;
+        let initialDistance = null;
+        let initialScale = 1;
 
-      scalingCloth.w *= scaleFactor;
-      scalingCloth.h *= scaleFactor;
+        canvas.style.pointerEvents = 'auto';
 
-      initialDistance = newDistance;
+        canvas.addEventListener('touchstart', (e) => {
+          const rect = canvas.getBoundingClientRect();
 
-      drawClothes();
-    }
-  });
+          if (e.touches.length === 1) {
+            // 👉 DRAG CON 1 DEDO
+            const t = e.touches[0];
+            const x = t.clientX - rect.left;
+            const y = t.clientY - rect.top;
 
-  canvas.addEventListener("touchend", () => {
-    initialDistance = null;
-    scalingCloth = null;
-  });
-}
+            activeCloth = activeClothes.find(
+              (c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h
+            );
+
+            if (activeCloth) {
+              startX = x - activeCloth.x;
+              startY = y - activeCloth.y;
+            }
+          }
+
+          if (e.touches.length === 2) {
+            // 👉 PINCH ZOOM
+            e.preventDefault();
+
+            const [t1, t2] = e.touches;
+
+            initialDistance = Math.hypot(
+              t2.clientX - t1.clientX,
+              t2.clientY - t1.clientY
+            );
+
+            const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
+            const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
+
+            activeCloth = activeClothes.find(
+              (c) =>
+                cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h
+            );
+
+            if (activeCloth) {
+              initialScale = activeCloth.w / activeCloth.h;
+            }
+          }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+          const rect = canvas.getBoundingClientRect();
+
+          // 👉 MOVER CON 1 DEDO
+          if (e.touches.length === 1 && activeCloth) {
+            const t = e.touches[0];
+
+            activeCloth.x = t.clientX - rect.left - startX;
+            activeCloth.y = t.clientY - rect.top - startY;
+
+            drawClothes();
+          }
+
+          // 👉 ZOOM + MOVER CENTRO CON 2 DEDOS
+          if (e.touches.length === 2 && activeCloth) {
+            e.preventDefault();
+
+            const [t1, t2] = e.touches;
+
+            const newDistance = Math.hypot(
+              t2.clientX - t1.clientX,
+              t2.clientY - t1.clientY
+            );
+
+            let scaleFactor = newDistance / initialDistance;
+
+            activeCloth.w *= scaleFactor;
+            activeCloth.h *= scaleFactor;
+
+            // mover al centro del gesto
+            const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
+            const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
+
+            activeCloth.x = cx - activeCloth.w / 2;
+            activeCloth.y = cy - activeCloth.h / 2;
+
+            initialDistance = newDistance;
+
+            drawClothes();
+          }
+        });
+
+        canvas.addEventListener('touchend', () => {
+          activeCloth = null;
+          initialDistance = null;
+        });
+      }
       function updateAIRecommendation(item) {
         const el = document.getElementById('ai-content');
         el.innerHTML =
